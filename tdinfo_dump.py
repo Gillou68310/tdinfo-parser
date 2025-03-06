@@ -2,14 +2,16 @@ import tdinfo_structs
 from io import StringIO
 import sys
 import ctypes
+import argparse
 
 TDINFO_MEMBER_INFO_END_MARKER = 0xC0
 TDINFO_MEMBER_PADDING_MARKER = 0x40
 REGISTER_NAME = ['AX', 'BX', 'CX', 'DX', 'SP', 'BP', 'SI', 'DI']
 
 class TdinfoDump(object):
-    def __init__(self, input_file_path):
+    def __init__(self, input_file_path, context):
         self._parsed_exe = tdinfo_structs.DOS_MZ_EXE_STRUCT.parse_file(input_file_path)
+        self._context = context
 
         print('/*Borland TLink symbolic information version: {}.{:02}*/'.format(
             self._parsed_exe.tdinfo_header.major_version,
@@ -352,8 +354,14 @@ class TdinfoDump(object):
                         print(', ', end='')
             else:
                 print('void', end='')
-            print(')')
+
+            if self._context:
+                print(');')
+            else:
+                print(')')
         else:
+            if self._context:
+                return
             #scope_offset = self._parsed_exe.scope_records[scope_record.parent - 1].offset
             parent_scope_record = self._parsed_exe.scope_records[scope_record.parent - 1]
             addr = (segment_record.code_segment << 16) + parent_scope_record.offset
@@ -441,9 +449,13 @@ class TdinfoDump(object):
         for segment_record in self._parsed_exe.segment_records:
             self._visit_scopes(segment_record, symbols)
 
-if len(sys.argv) != 2:
-    print('Usage: python tdinfo_dump.py <DOS_MZ_EXE>')
-    sys.exit()
+parser = argparse.ArgumentParser(prog='python tdinfo_dump.py')
+parser.add_argument('DOS_MZ_EXE', nargs='?', default=None)
+parser.add_argument('-c', '--context', action='store_true', default=False, help='Dump functions prototype only')
+args = parser.parse_args()
 
-p = TdinfoDump(sys.argv[1])
+if args.DOS_MZ_EXE == None:
+    parser.print_help()
+
+p = TdinfoDump(args.DOS_MZ_EXE, args.context)
 p.dump()
