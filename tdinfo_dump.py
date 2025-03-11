@@ -7,6 +7,7 @@ import argparse
 TDINFO_MEMBER_INFO_END_MARKER = 0xC0
 TDINFO_MEMBER_PADDING_MARKER = 0x40
 REGISTER_NAME = ['AX', 'BX', 'CX', 'DX', 'SP', 'BP', 'SI', 'DI']
+PASCAL = 5
 
 class TdinfoDump(object):
     def __init__(self, input_file_path, context):
@@ -318,7 +319,7 @@ class TdinfoDump(object):
             assert(func.bitfield.symbol_class == tdinfo_structs.SymbolClass.STATIC.name)
 
             name = self._get_name_from_pool(func.index)
-            if type_record.class_type != 5: #Pascal???
+            if type_record.class_type != PASCAL:
                 name = name[1:] #skip leading underscore
             assert(func.type > 0)
 
@@ -326,7 +327,7 @@ class TdinfoDump(object):
             assert('[' not in decl and '(' not in decl)
             assert(size == 0)
 
-            if type_record.class_type != 5: #Pascal???
+            if type_record.class_type != PASCAL:
                 print(decl + ' ' + name + '(', end='')
             else:
                 print(decl + ' pascal ' + name + '(', end='')
@@ -336,21 +337,16 @@ class TdinfoDump(object):
 
             if scope_record.symbol_count != 0:
                 prev_offset = 0
-
-                #TODO: is stack really inverted for pascal calling convention?
-                if type_record.class_type != 5: #Pascal???
-                    r = range(range_end-1, first_symbol_index-1, -1)
-                else:
-                    r = range(first_symbol_index, range_end)
-                    
-                for symbol_index in r:
+                for symbol_index in range(range_end-1, first_symbol_index-1, -1):
                     symbol = self._parsed_exe.symbol_records[symbol_index]
                     offset = ctypes.c_int16(symbol.offset).value
                     assert(offset >= 6)
-                    assert(prev_offset < offset)
+                    #TODO: check pascal stack order
+                    if type_record.class_type != PASCAL:
+                        assert(prev_offset < offset)
                     self._dump_function_args(symbol)
                     prev_offset = offset
-                    if symbol_index != r.stop-r.step:
+                    if symbol_index != first_symbol_index:
                         print(', ', end='')
             else:
                 print('void', end='')
@@ -371,19 +367,15 @@ class TdinfoDump(object):
             first_symbol_index = scope_record.symbol_index - 1
             range_end = first_symbol_index + scope_record.symbol_count
 
-            #TODO: is stack really inverted for pascal calling convention?
-            if parent_type_record.class_type != 5: #Pascal???
-                r = range(range_end-1, first_symbol_index-1, -1)
-            else:
-                r = range(first_symbol_index, range_end)
-
             print('{')
             prev_offset = sys.maxsize
-            for symbol_index in r:
+            for symbol_index in range(range_end-1, first_symbol_index-1, -1):
                 symbol = self._parsed_exe.symbol_records[symbol_index]
                 offset = ctypes.c_int16(symbol.offset).value
                 if symbol.bitfield.symbol_class != tdinfo_structs.SymbolClass.REGISTER.name:
-                    assert(prev_offset > offset)
+                    #TODO: check pascal stack order
+                    if parent_type_record.class_type != PASCAL:
+                        assert(prev_offset > offset)
                     prev_offset = offset
                 self._dump_local_variable(symbol)
             print('}\n')
