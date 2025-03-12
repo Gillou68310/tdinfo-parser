@@ -6,7 +6,7 @@ import argparse
 
 TDINFO_MEMBER_INFO_END_MARKER = 0xC0
 TDINFO_MEMBER_PADDING_MARKER = 0x40
-REGISTER_NAME = ['AX', 'BX', 'CX', 'DX', 'SP', 'BP', 'SI', 'DI']
+REGISTER_NAME = ['AX', 'CX', 'DX', 'BX', 'SP', 'BP', 'SI', 'DI']
 PASCAL = 5
 
 class TdinfoDump(object):
