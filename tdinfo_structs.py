@@ -147,12 +147,33 @@ TDINFO_HEADER_STRUCT = Struct(
     Padding(this.extension_size)
 )
 
+RELOC_RECORD_STRUCT = Struct(
+    'offset' / Int16ul,
+    'segment' / Int16ul
+)
+
 DOS_MZ_EXE_STRUCT = Struct(
     'signature' / Const(b'MZ'),
     'used_bytes_in_last_page' / Int16ul,
     'file_size_in_pages' / Int16ul,
-    'offset_of_unused_bytes' / Tell,
-    Padding(lambda ctx: calculate_extra_information_offset(ctx) - ctx.offset_of_unused_bytes),
+    'wReloCnt' / Int16ul,
+    'wHdrSize' / Int16ul,
+    'wMinAlloc' / Int16ul,
+    'wMaxAlloc' / Int16ul,
+    'wInitSS' / Int16ul,
+    'wInitSP' / Int16ul,
+    'wChkSum' / Int16ul,
+    'wInitIP' / Int16ul,
+    'wInitCS' / Int16ul,
+    'wTablOff' / Int16ul,
+    'wOverlayNo' / Int16ul,
+    'current_position' / Tell,
+    Padding(this.wTablOff - this.current_position),
+    'alReloTbl' / RELOC_RECORD_STRUCT[this.wReloCnt],
+    'current_position' / Tell,
+    Padding(this.wHdrSize*16 - this.current_position),
+    'current_position' / Tell,
+    'abImage' / Byte[lambda ctx: calculate_extra_information_offset(ctx) - ctx.current_position],
     'tdinfo_header' / TDINFO_HEADER_STRUCT,
     'symbol_records' / SYMBOL_RECORD_STRUCT[this.tdinfo_header.symbols_count],
     'module_records' / MODULE_RECORD_STRUCT[this.tdinfo_header.modules_count],
